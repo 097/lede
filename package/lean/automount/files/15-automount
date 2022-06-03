@@ -6,13 +6,21 @@
 blkdev=`dirname $DEVPATH`
 basename=`basename $blkdev`
 device=`basename $DEVPATH`
-skip=`block info | grep -vE '(f2fs|kernel|squashfs)' | sed 's/\(.*\): .*/\1/' | grep -q $device ; echo $?`
+
+mounts=$(block info | grep -vE '(f2fs|kernel|squashfs|MOUNT=)')
+skip=0
+if [ -n "$mounts" ]; then
+	echo "$mounts" | sed 's/\(.*\): .*/\1/' | grep -q $device && skip=1
+fi
+
 path=$DEVPATH
 
+logger -t automount "DEVPATH: $DEVPATH, basename: $basename, device: $device, skip: $skip"
 if [ $basename != "block" ] && [ -z "${device##sd*}" ] && [ $skip -eq 1 ]; then
 	mntpnt=$device
 	case "$ACTION" in
 		add)
+			logger -t automount "mounting device $device"
 			mkdir -p /mnt/$mntpnt
 			chmod 777 /mnt/$mntpnt
 			# Try to be gentle on solid state devices
